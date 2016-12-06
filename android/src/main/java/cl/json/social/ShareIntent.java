@@ -7,10 +7,12 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 
 import cl.json.ShareFile;
 
@@ -24,7 +26,7 @@ public abstract class ShareIntent {
     protected String chooserTitle = "Share";
     public ShareIntent(ReactApplicationContext reactContext) {
         this.reactContext = reactContext;
-        this.setIntent(new Intent(android.content.Intent.ACTION_SEND));
+        this.setIntent(new Intent(android.content.Intent.ACTION_SEND_MULTIPLE));
         this.getIntent().setType("text/plain");
     }
     public void open(ReadableMap options) throws ActivityNotFoundException {
@@ -52,6 +54,25 @@ public abstract class ShareIntent {
                 this.getIntent().addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } else {
                 this.getIntent().putExtra(Intent.EXTRA_TEXT, options.getString("url"));
+            }
+        } else if (ShareIntent.hasValidKey("urls", options)) {
+            ArrayList<Uri> files = new ArrayList<Uri>();
+            ReadableArray urls = options.getArray("urls");
+            int n = urls.size();
+            for(int i=0; i<n; i++) {
+                ReadableMap url = urls.getMap(i);
+                ShareFile fileShare = getFileShare(url);
+                if(fileShare.isFile()) {
+                    Uri uriFile = fileShare.getURI();
+                    files.add(uriFile);
+                }
+            }
+            this.getIntent().setType("*/*");
+            this.getIntent().putParcelableArrayListExtra(Intent.EXTRA_STREAM, files);
+            this.getIntent().addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            if (ShareIntent.hasValidKey("message", options) ) {
+                this.getIntent().putExtra(Intent.EXTRA_TEXT, options.getString("message"));
             }
         } else if (ShareIntent.hasValidKey("message", options) ) {
             this.getIntent().putExtra(Intent.EXTRA_TEXT, options.getString("message"));
